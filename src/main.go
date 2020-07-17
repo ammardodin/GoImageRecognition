@@ -15,59 +15,57 @@ import (
 	"github.com/tensorflow/tensorflow/tensorflow/go/op"
 )
 
+
 const (
 	graphFile  = "/model/tensorflow_inception_graph.pb"
 	labelsFile = "/model/imagenet_comp_graph_label_strings.txt"
 )
 
-// Label type
+// a structure that represents a label
 type Label struct {
 	Label       string  `json:"label"`
 	Probability float32 `json:"probability"`
 }
 
-// Labels type
+//list of the labels
 type Labels []Label
 
+//defines how we sort all the labels
 func (a Labels) Len() int           { return len(a) }
 func (a Labels) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a Labels) Less(i, j int) bool { return a[i].Probability > a[j].Probability }
 
 
 
-// This is the method that 
+// This is the main method 
 func main() {
 	os.Setenv("TF_CPP_MIN_LOG_LEVEL", "2")
 
-	//the url is too short meaning it is not valid
-	if len(os.Args) < 2 {
-		log.Fatalf("usage: imgrecognition <image_url>")
-	}
-	//prints out the url we are trying to search for
-	fmt.Printf("the url name: %s\n", os.Args[1])
+	if (checkUrl()){
 
-	// Get image from URL
+
 	response, e := http.Get(os.Args[1])
 	if e != nil {
 		log.Fatalf("unable to get image from url: %v", e)
 	}
 	defer response.Body.Close()
 
+	// turns the image into a tensor so it can be comapared to by the model
+	tensor, err := imageToTensor(response.Body)
+	if err != nil {
+		log.Fatalf("cannot create tensor from the model %v", err)
+	}
+
+
 	modelGraph, labels, err := loadModel()
 	if err != nil {
 		log.Fatalf("There was an issue loading the model %v", err)
 	}
 
-	// turns the image into a tensor so it can be comapared to by the model
-	tensor, err := normalizeImage(response.Body)
-	if err != nil {
-		log.Fatalf("cannot create tenspr from the model %v", err)
-	}
-
-	// Create a session for inference over modelGraph
+	// Create a session for it to guess what the image is based off the model
 	session, err := tensorflow.NewSession(modelGraph, nil)
 	if err != nil {
-		log.Fatalf("could not init session: %v", err)
+		log.Fatalf("There was an error initializing the session: %v", err)
 	}
 
 	output, err := session.Run(
@@ -79,13 +77,39 @@ func main() {
 		},
 		nil)
 	if err != nil {
-		log.Fatalf("could not run inference: %v", err)
+		log.Fatalf("could not make a guess: %v", err)
 	}
 	//gets the top 5 guesses
 	res := getTopFiveLabels(labels, output[0].Value().([][]float32)[0])
+	//prints out the top 5 guesses
 	for _, l := range res {
 		fmt.Printf("label: %s, probability: %.2f%%\n", l.Label, l.Probability*100)
 	}
+}
+}
+
+//checks the url we are trying to search for
+func checkUrl() bool{
+	//the url is too short meaning it is not valid
+	if len(os.Args) < 2 {
+		log.Fatalf("usage: imgrecognition <image_url>")
+		return false
+	}
+	//prints out the url we are trying to search for
+	fmt.Printf("the url name we are searching for: %s\n", os.Args[1])
+	return true
+}
+
+
+//gets the image from a Url
+func getImage() *http.Response{
+		// Get image from URL
+	response, e := http.Get(os.Args[1])
+	if e != nil {
+		log.Fatalf("unable to get image from url: %v", e)
+	}
+	defer response.Body.Close()
+	return response
 }
 
 
@@ -112,10 +136,9 @@ func loadModel() (*tensorflow.Graph, []string, error) {
 	for scanner.Scan() {
 		labels = append(labels, scanner.Text())
 	}
-
 	return graph, labels, scanner.Err()
 }
-
+//gets the top 5 labels the image is most likely to be
 func getTopFiveLabels(labels []string, probabilities []float32) []Label {
 	var resultLabels []Label
 	for i, p := range probabilities {
@@ -129,7 +152,9 @@ func getTopFiveLabels(labels []string, probabilities []float32) []Label {
 	return resultLabels[:5]
 }
 
-func normalizeImage(body io.ReadCloser) (*tensorflow.Tensor, error) {
+//this is a function inorder to normalize an image by turning it into a tensor
+func imageToTensor(body io.ReadCloser) (*tensorflow.Tensor, error) {
+	//buffers from the body function
 	var buf bytes.Buffer
 	io.Copy(&buf, body)
 
@@ -164,6 +189,7 @@ func normalizeImage(body io.ReadCloser) (*tensorflow.Tensor, error) {
 }
 
 // Creates a graph to decode, rezise and normalize an image
+//normalizes an image to tensor flow image
 func getNormalizedGraph() (graph *tensorflow.Graph, input, output tensorflow.Output, err error) {
 	s := op.NewScope()
 	input = op.Placeholder(s, tensorflow.String)

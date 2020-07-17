@@ -3,9 +3,9 @@ This is a program built using go that classifies animals using tensor flow and g
 Clone the project
 
 
-Build the docker file
+#Build the docker file
 docker build --tag src:1.0 .
 
 
-Run the file
+#Run the file
 docker run src:1.0 url_address_of_image
