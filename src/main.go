@@ -41,62 +41,61 @@ func (a Labels) Less(i, j int) bool { return a[i].Probability > a[j].Probability
 func main() {
 	os.Setenv("TF_CPP_MIN_LOG_LEVEL", "2")
 
-	if (checkUrl()){
+	if (checkArgs(os.Args)){
+		response, e := http.Get(os.Args[1])
+		if e != nil {
+			log.Fatalf("unable to get image from url: %v", e)
+		}
+		defer response.Body.Close()
+
+		// turns the image into a tensor so it can be comapared to by the model
+		tensor, err := imageToTensor(response.Body)
+		if err != nil {
+			log.Fatalf("cannot create tensor from the model %v", err)
+		}
 
 
-	response, e := http.Get(os.Args[1])
-	if e != nil {
-		log.Fatalf("unable to get image from url: %v", e)
-	}
-	defer response.Body.Close()
+		modelGraph, labels, err := loadModel()
+		if err != nil {
+			log.Fatalf("There was an issue loading the model %v", err)
+		}
 
-	// turns the image into a tensor so it can be comapared to by the model
-	tensor, err := imageToTensor(response.Body)
-	if err != nil {
-		log.Fatalf("cannot create tensor from the model %v", err)
-	}
+		// Create a session for it to guess what the image is based off the model
+		session, err := tensorflow.NewSession(modelGraph, nil)
+		if err != nil {
+			log.Fatalf("There was an error initializing the session: %v", err)
+		}
 
-
-	modelGraph, labels, err := loadModel()
-	if err != nil {
-		log.Fatalf("There was an issue loading the model %v", err)
-	}
-
-	// Create a session for it to guess what the image is based off the model
-	session, err := tensorflow.NewSession(modelGraph, nil)
-	if err != nil {
-		log.Fatalf("There was an error initializing the session: %v", err)
-	}
-
-	output, err := session.Run(
-		map[tensorflow.Output]*tensorflow.Tensor{
-			modelGraph.Operation("input").Output(0): tensor,
-		},
-		[]tensorflow.Output{
-			modelGraph.Operation("output").Output(0),
-		},
-		nil)
-	if err != nil {
-		log.Fatalf("could not make a guess: %v", err)
-	}
-	//gets the top 5 guesses
-	res := getTopFiveLabels(labels, output[0].Value().([][]float32)[0])
-	//prints out the top 5 guesses
-	for _, l := range res {
-		fmt.Printf("label: %s, probability: %.2f%%\n", l.Label, l.Probability*100)
-	}
+		output, err := session.Run(
+			map[tensorflow.Output]*tensorflow.Tensor{
+				modelGraph.Operation("input").Output(0): tensor,
+			},
+			[]tensorflow.Output{
+				modelGraph.Operation("output").Output(0),
+			},
+			nil)
+		if err != nil {
+			log.Fatalf("could not make a guess: %v", err)
+		}
+		//gets the top 5 guesses
+		res := getTopFiveLabels(labels, output[0].Value().([][]float32)[0])
+		//prints out the top 5 guesses
+		for _, l := range res {
+			fmt.Printf("label: %s, probability: %.2f%%\n", l.Label, l.Probability*100)
+		}
 }
 }
 
 //checks the url we are trying to search for
-func checkUrl() bool{
+func checkArgs(args []string) bool{
 	//the url is too short meaning it is not valid
-	if len(os.Args) < 2 {
+	if len(args) < 2 {
 		log.Fatalf("usage: imgrecognition <image_url>")
 		return false
 	}
 	//prints out the url we are trying to search for
-	fmt.Printf("the url name we are searching for: %s\n", os.Args[1])
+	url := args[1]
+	fmt.Printf("the url name we are searching for: %s\n", url)
 	return true
 }
 

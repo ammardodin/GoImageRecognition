@@ -1,2 +1,39 @@
 package main
 
+import(
+	"testing"
+)
+
+
+func TestCheckArgs(t *testing.T){
+	var tests = []struct {
+        args []string
+        want bool
+    }{
+        {[1]string{"1"}, false},
+        {[1]string{"1","www.google.com"}, true},
+    }
+     for _, tt := range tests {
+        testname := fmt.Sprintf("%d", tt.args)
+        t.Run(testname, func(t *testing.T) {
+            ans := checkArgs(tt.args)
+            if ans != tt.want {
+                t.Errorf("got %d, want %d", ans, tt.want)
+            }
+        })
+    }
+}
+
+
+func TestMain(t *testing. T){
+	os.Args[0]="/go/src/imgrecognition/imgrecognition"
+	os.Args[1]="https://cdn.pixabay.com/photo/2019/07/30/05/53/dog-4372036__340.jpg"
+
+}
+
+
+func TestLabels(t *testing. T){
+	os.Args[0]="/go/src/imgrecognition/imgrecognition"
+	os.Args[1]="https://cdn.pixabay.com/photo/2019/07/30/05/53/dog-4372036__340.jpg"
+
+}

@@ -8,4 +8,6 @@ RUN mkdir -p /model && \
 WORKDIR /go/src/imgrecognition
 COPY . .
 RUN go build
+RUN go test -v
 ENTRYPOINT [ "/go/src/imgrecognition/imgrecognition" ]
+
