@@ -46,8 +46,14 @@ func main() {
 		}
 		defer response.Body.Close()
 
+		//Gets the normalized graph
+		graph, input, outputG, err := getNormalizedGraph()
+		if err != nil {
+			log.Fatalf("unable to get normalized graph %v", e)
+		}
+
 		// turns the image into a tensor so it can be comapared to by the model
-		tensor, err := imageToTensor(response.Body, tensorflow.NewTensor)
+		tensor, err := imageToTensor(response.Body, tensorflow.NewTensor, runSession, graph, input, outputG)
 		if err != nil {
 			log.Fatalf("cannot create tensor from the model %v", err)
 		}
@@ -138,7 +144,10 @@ func getTopFiveLabels(labels []string, probabilities []float32) []Label {
 }
 
 //this is a function inorder to normalize an image by turning it into a tensor
-func imageToTensor(body io.ReadCloser, createTensor func(value interface{}) (*tensorflow.Tensor, error)) (*tensorflow.Tensor, error) {
+func imageToTensor(body io.ReadCloser, createTensor func(value interface{}) (*tensorflow.Tensor, error),
+	runSession func(*tensorflow.Session, *tensorflow.Tensor, tensorflow.Output,
+	tensorflow.Output) ([]*tensorflow.Tensor, error), graph *tensorflow.Graph, input tensorflow.Output,
+	output tensorflow.Output) (*tensorflow.Tensor, error) {
 	//buffers from the body function
 	var buf bytes.Buffer
 	io.Copy(&buf, body)
@@ -148,16 +157,21 @@ func imageToTensor(body io.ReadCloser, createTensor func(value interface{}) (*te
 		return nil, err
 	}
 
-	graph, input, output, err := getNormalizedGraph()
-	if err != nil {
-		return nil, err
-	}
-
 	session, err := tensorflow.NewSession(graph, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	normalized, err := runSession(session, tensor, input, output)
+	if err != nil {
+		return nil, err
+	}
+
+	return normalized[0], nil
+}
+
+func runSession(session *tensorflow.Session, tensor *tensorflow.Tensor, input tensorflow.Output,
+	output tensorflow.Output) ([]*tensorflow.Tensor, error) {
 	normalized, err := session.Run(
 		map[tensorflow.Output]*tensorflow.Tensor{
 			input: tensor,
@@ -166,11 +180,7 @@ func imageToTensor(body io.ReadCloser, createTensor func(value interface{}) (*te
 			output,
 		},
 		nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return normalized[0], nil
+	return normalized, err
 }
 
 // Creates a graph to decode, rezise and normalize an image
