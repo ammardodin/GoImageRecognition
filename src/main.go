@@ -15,7 +15,6 @@ import (
 	"github.com/tensorflow/tensorflow/tensorflow/go/op"
 )
 
-
 const (
 	graphFile  = "/model/tensorflow_inception_graph.pb"
 	labelsFile = "/model/imagenet_comp_graph_label_strings.txt"
@@ -35,13 +34,12 @@ func (a Labels) Len() int           { return len(a) }
 func (a Labels) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a Labels) Less(i, j int) bool { return a[i].Probability > a[j].Probability }
 
-
-
-// This is the main method 
+// This is the main method
 func main() {
 	os.Setenv("TF_CPP_MIN_LOG_LEVEL", "2")
 
-	if (checkArgs(os.Args)){
+	if checkArgs(os.Args) {
+
 		response, e := http.Get(os.Args[1])
 		if e != nil {
 			log.Fatalf("unable to get image from url: %v", e)
@@ -49,11 +47,10 @@ func main() {
 		defer response.Body.Close()
 
 		// turns the image into a tensor so it can be comapared to by the model
-		tensor, err := imageToTensor(response.Body)
+		tensor, err := imageToTensor(response.Body, tensorflow.NewTensor)
 		if err != nil {
 			log.Fatalf("cannot create tensor from the model %v", err)
 		}
-
 
 		modelGraph, labels, err := loadModel()
 		if err != nil {
@@ -83,14 +80,15 @@ func main() {
 		for _, l := range res {
 			fmt.Printf("label: %s, probability: %.2f%%\n", l.Label, l.Probability*100)
 		}
-}
+	} else {
+		log.Fatalf("usage: imgrecognition <image_url>")
+	}
 }
 
 //checks the url we are trying to search for
-func checkArgs(args []string) bool{
+func checkArgs(args []string) bool {
 	//the url is too short meaning it is not valid
 	if len(args) < 2 {
-		log.Fatalf("usage: imgrecognition <image_url>")
 		return false
 	}
 	//prints out the url we are trying to search for
@@ -98,19 +96,6 @@ func checkArgs(args []string) bool{
 	fmt.Printf("the url name we are searching for: %s\n", url)
 	return true
 }
-
-
-//gets the image from a Url
-func getImage() *http.Response{
-		// Get image from URL
-	response, e := http.Get(os.Args[1])
-	if e != nil {
-		log.Fatalf("unable to get image from url: %v", e)
-	}
-	defer response.Body.Close()
-	return response
-}
-
 
 // function that loads a pretrained model
 func loadModel() (*tensorflow.Graph, []string, error) {
@@ -137,6 +122,7 @@ func loadModel() (*tensorflow.Graph, []string, error) {
 	}
 	return graph, labels, scanner.Err()
 }
+
 //gets the top 5 labels the image is most likely to be
 func getTopFiveLabels(labels []string, probabilities []float32) []Label {
 	var resultLabels []Label
@@ -152,12 +138,12 @@ func getTopFiveLabels(labels []string, probabilities []float32) []Label {
 }
 
 //this is a function inorder to normalize an image by turning it into a tensor
-func imageToTensor(body io.ReadCloser) (*tensorflow.Tensor, error) {
+func imageToTensor(body io.ReadCloser, createTensor func(value interface{}) (*tensorflow.Tensor, error)) (*tensorflow.Tensor, error) {
 	//buffers from the body function
 	var buf bytes.Buffer
 	io.Copy(&buf, body)
 
-	tensor, err := tensorflow.NewTensor(buf.String())
+	tensor, err := createTensor(buf.String())
 	if err != nil {
 		return nil, err
 	}
