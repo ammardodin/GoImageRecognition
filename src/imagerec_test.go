@@ -5,7 +5,7 @@ import (
 	"github.com/tensorflow/tensorflow/tensorflow/go"
 	"log"
 	"net/http"
-	"os"
+	// "os"
 	"testing"
 )
 
@@ -89,12 +89,6 @@ func TestImageToTensor(t *testing.T) {
 			}
 		})
 	}
-
-}
-
-func TestMain(m *testing.M) {
-	os.Args[0] = "/go/src/imgrecognition/imgrecognition"
-	os.Args[1] = "https://cdn.pixabay.com/photo/2019/07/30/05/53/dog-4372036__340.jpg"
 
 }
 
