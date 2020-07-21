@@ -98,10 +98,14 @@ func TestMain(m *testing.M) {
 
 }
 
+//Labels tests
 func TestLabels(t *testing.T) {
 	var labels []Label
 	labels = append(labels, Label{"hello", 5})
-
+	labels = append(labels, Label{"word", 4})
+	labels = append(labels, Label{"this", 5})
+	labels = append(labels, Label{"is", 5})
+	labels = append(labels, Label{"a", 5})
 	var tests = []struct {
 		name          string
 		labels        []string
@@ -124,5 +128,6 @@ func TestLabels(t *testing.T) {
 			}
 		})
 	}
-
 }
+
+
