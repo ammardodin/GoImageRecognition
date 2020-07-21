@@ -33,6 +33,17 @@ type Labels []Label
 func (a Labels) Len() int           { return len(a) }
 func (a Labels) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a Labels) Less(i, j int) bool { return a[i].Probability > a[j].Probability }
+func (a Labels) Equals(other Labels) bool {
+	if a.Len() != other.Len() {
+		return false
+	}
+	for i, l := range a {
+		if l.Label != other[i].Label || l.Probability != other[i].Probability {
+			return false
+		}
+	}
+	return true
+}
 
 // This is the main method
 func main() {
@@ -130,7 +141,7 @@ func loadModel() (*tensorflow.Graph, []string, error) {
 }
 
 //gets the top 5 labels the image is most likely to be
-func getTopFiveLabels(labels []string, probabilities []float32) []Label {
+func getTopFiveLabels(labels []string, probabilities []float32) Labels {
 	var resultLabels []Label
 	for i, p := range probabilities {
 		if i >= len(labels) {
